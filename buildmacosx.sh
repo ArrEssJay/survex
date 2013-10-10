@@ -40,7 +40,7 @@ set -e
 # /bin/sh: line 0: cd: ../build/bakefiles/wxpresets/presets: No such file or directory
 # cp: wx.bkl: No such file or directory
 # [...]
-WXVERSION=2.8.11
+WXVERSION=2.9.5
 
 # Sadly, you can only specify one arch via -arch at a time (a restriction of
 # the wxWidgets build system).
@@ -59,7 +59,7 @@ if [ -z "${WX_CONFIG+set}" ] && [ "x$1" != "x--no-install-wx" ] ; then
     prefix=`pwd`/WXINSTALL
     wxtarball=wxWidgets-$WXVERSION.tar.bz2
     test -f "$wxtarball" || \
-      curl -O "ftp://ftp.wxwidgets.org/pub/$WXVERSION/$wxtarball"
+      curl -L -o ./$wxtarball "http://sourceforge.net/projects/wxwindows/files/$WXVERSION/$wxtarball/download"
     echo "+++ Extracting $wxtarball"
     test -d "wxWidgets-$WXVERSION" || tar jxf "$wxtarball"
     test -d "wxWidgets-$WXVERSION/build" || "mkdir wxWidgets-$WXVERSION/build"
