@@ -2,14 +2,25 @@ dnl Process this file with autoconf to produce a configure script
 
 dnl Need autoconf 2.50 or later for AC_ARG_VAR.  2.59 has been around for
 dnl long enough, that we might as well just require that.
+
 AC_PREREQ(2.59)
 AC_INIT([survex], [1.2.7], [http://trac.survex.com/])
 AM_INIT_AUTOMAKE([1.5 gnu -Wall -Wportability -Werror])
 RELEASE=1
 
+#AX_PKG_SWIG(1.3.17, [], [ AC_MSG_ERROR([SWIG is required to build..]) ])
+#AX_SWIG_ENABLE_CXX
+#AX_SWIG_MULTI_MODULE_SUPPORT
+#AX_SWIG_PYTHON
+
+AM_PROG_AR
+LT_PREREQ([2.2])
+LT_INIT([shared])
+
 AC_SUBST(RELEASE)
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_SRCDIR([src/aven.cc])
+AC_CONFIG_MACRO_DIR([m4])
 
 COPYRIGHT_MSG="Copyright (C) 1990-2013 Olly Betts"
 AVEN_COPYRIGHT_MSG="Copyright (C) 1999-2003,2005,2006 Mark R. Shinwell"
@@ -388,8 +399,9 @@ AH_BOTTOM(
 
 AC_CONFIG_FILES([
  Makefile src/Makefile doc/Makefile lib/Makefile lib/icons/Makefile
- tests/Makefile vim/Makefile survex.iss doc/index.htm doc/survex.7
- doc/version.ent survex.spec src/svxedit lib/survex.keys lib/Info.plist
+ tests/Makefile vim/Makefile libsvximg/Makefile include/Makefile
+ survex.iss doc/index.htm doc/survex.7 doc/version.ent survex.spec
+ src/svxedit lib/survex.keys lib/Info.plist
  ])
 AC_OUTPUT
 dnl FIXME update msvc makefile for 1.1 branch

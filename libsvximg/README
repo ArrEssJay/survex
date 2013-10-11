@@ -1,0 +1,10 @@
+Shared img.c library + python wrapper
+
+Install:
+Run autoreconf and configure in the top level folder
+then run make here to build the shared img library
+
+Then run 'make -f img.mk' here to build the SWIG python wrapper
+TODO: Build the wrapper as part of the core survex build
+
+img_py_test.py shows a basic example of parsing a .3d file
