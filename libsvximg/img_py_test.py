@@ -29,14 +29,16 @@ def main(argv=None):
         if (pimg.flags != 0):
             print('Flags: Extended Elevation')
     else:
-    	print('Failed to open: ' + shell_args.input)
+        print('Failed to open: ' + shell_args.input)
         return 1
 
     stations = {}
 
     item = 0
-    count = 0
+    count_move = count_line = count_label = count_xsect = count_einfo = 0
     p_xyz = p_lrud = p_label = p_flags = p_einfo = p_style = 0
+    x_max = y_max = z_max = 0
+    x_min = y_min = z_min = 0
     p = img_point()
 
     while(item != img_STOP):
@@ -49,21 +51,25 @@ def main(argv=None):
         elif (item == img_ERROR_INFO):
             print("ERROR_INFO")
             p_einfo = p_pxy = p_style = 1
+            count_einfo += 1
         elif (item == img_XSECT):
             print("XSECT")
-            p_lrud = p_label = p_flags = p_style = 1   
+            p_lrud = p_label = p_flags = p_style = 1
+            count_xsect += 1
         elif (item == img_XSECT_END):
             print("XSECT_END")
-            p_label = p_flags = 1 
+            p_label = p_flags = 1
         elif (item == img_MOVE):
             print("MOVE")
             p_xyz = p_label = p_flags = 1
+            count_move += 1
         elif (item == img_LINE):
             print("LINE")
             p_xyz = p_label = p_flags = p_style = p_lrud = 1
+            count_line += 1
         elif (item == img_LABEL):
             print("LABEL")
-        
+
             #Can't just assign pt to p as it will change on next read_item()
             #Nor will deepcopy work without changes to the interface
             #Must be a more elgant way to do this
@@ -75,18 +81,41 @@ def main(argv=None):
             stations.update({pimg.label:pt})
             p_xyz = p_label = p_flags = p_style = 1
 
+            #update x/y/z_max
+            #Set an initial value
+            if(count_label == 0):
+                x_max = x_min = pt.x
+                y_max = y_min = pt.y
+                z_max = z_min = pt.z
+            else:
+                if (pt.x > x_max):
+                    x_max = pt.x
+                if (pt.y > y_max):
+                    y_max = pt.y
+                if (pt.z > z_max):
+                    z_max = pt.z
+
+                if (pt.x < x_min):
+                    x_min = pt.x
+                if (pt.y < y_min):
+                    y_min = pt.y
+                if (pt.z < z_min):
+                    z_min = pt.z
+            count_label += 1
+
         if (p_xyz):
             print("     X: "+str(p.x) +" Y: "+str(p.y) +" Z: "+str(p.z))
             p_xyz = 0
-            
+
         if (p_lrud):
             print("     LRUD: l:"+str(pimg.l)+" r:"+str(pimg.r)+" u:"+str(pimg.u)+" d:"+str(pimg.d))
             p_lrud = 0
 
         if (p_einfo):
+            print("     ERROR: # Legs: "+str(pimg.n_legs)+" Length: "+str(pimg.length))
             print("     ERROR: E: "+str(pimg.E)+" H: "+str(pimg.H)+" V: "+str(pimg.V))
             p_einfo = 0
-        
+
         if (p_label):
             labels = pimg.label.split(pimg.separator)
             if (len(labels) >= 1 ):
@@ -94,7 +123,7 @@ def main(argv=None):
             if (len(labels) == 2 ):
                 print("     STATION: " + labels[1])
             p_label = 0
-        
+
         if (p_flags and (pimg.flags != 0)):
             print("     FLAGS("+hex(pimg.flags)+"):"),
             if (item == img_LINE):
@@ -126,7 +155,7 @@ def main(argv=None):
                 print("UNKNOWN FLAG: "+hex(pimg.flags)),
             print('')
             p_flags = 0
-        
+
         if(p_style and (pimg.style != img_STYLE_UNKNOWN)):
             print("     STYLE:"),
             if(pimg.style == img_STYLE_NORMAL):
@@ -142,13 +171,25 @@ def main(argv=None):
             print('')
             p_style = 0
 
-        count += 1
 
-    print("Total Points: "+str(count))
+    
+
 
     print("Station Labels->XYZ:")
     for k, pt in stations.iteritems():
         print(k+" -> X: "+str(pt.x)+" Y: "+str(pt.y)+" Z: "+str(pt.z))
+
+    print ("------\nStats\n-----")
+    print("Total LABEL: "+str(count_label))
+    print("Total LINE: "+str(count_line))
+    print("Total XSECT: "+str(count_xsect))
+    print("Total MOVE: "+str(count_move))
+    print("Total ERROR_INFO: "+str(count_einfo))
+    print('-----')
+    #Calculate X/Y/Z ranges
+    print ("Max: x: "+str(x_max)+" y: "+str(y_max)+" z: "+str(z_max))
+    print ("Min: x: "+str(x_min)+" y: "+str(y_min)+" z: "+str(z_min))
+    print ("Range: x: "+str(x_max-x_min)+" y: "+str(y_max-y_min)+" z: "+str(z_max-z_min))
 
     return 0
 
