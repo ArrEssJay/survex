@@ -8,16 +8,23 @@ from pykml.factory import KML_ElementMaker as KML
 from lxml import etree
 from vec3 import *
 from math import *
+from collada import *
+import numpy
 
 #default config
 epsg="epsg:28356" #GDA94 (UTM)
 geod_sphere="GRS80"
-#refstation = "ent.j13"
-#ref_E = 0224154.45
-#ref_N = 6255362.60
-#ref_Z = 842.48
+refstation = "ent.j13"
+ref_E = 0224154.45
+ref_N = 6255362.60
+ref_Z = 842.48
 alt_offset = 300
 alt_exag = 1
+kmltubegeom = False
+
+
+#globals
+survey_name=""
 
 def copy_point(p):
     #Can't just assign pt to p as it will change on next read_item()
@@ -29,6 +36,155 @@ def copy_point(p):
     pt.z = p.z
     return pt
 
+def tubes_to_collada(tube_geometries):
+    mesh = Collada()
+
+    #generic material setup
+    effect = material.Effect("effect0", [], "phong", diffuse=(1,1,0.5), specular=(0.5,0.75,0.2))
+    mat = material.Material("material0", "mymaterial", effect)
+    mesh.effects.append(effect)
+    mesh.materials.append(mat)
+
+    #list of all nodes for the scene
+    nodelist=[]
+
+    for ti, tube in enumerate(tube_geometries):
+        #Add each vertex to an array
+        vertices = []
+        normals = [0.5,0.5,0.5]
+        indices = []
+
+
+        for pos, cs in enumerate(tube):
+            print("Cross Section: "+str(pos))
+            #append the vertices for this cross-section
+            for v in cs:
+                print ("Vertice: "+str(v))
+                for coord in v:
+                    vertices.append(coord)
+
+            if pos +1 == len(tube):
+                 #we've reached the end and just need to
+                 #add an end cap
+                 print("end of tube")
+                 #end_faces = [0,1,2,2,3,0]
+                 end_faces = [0,3,2,2,1,0]
+                 for vertex in end_faces:
+                    indices.append(vertex + (pos*4)) #vertices
+
+            else:
+                #we're at the start/middle and need the next section
+                #ncs = tube[pos+1]
+
+                #calculate our faces between cs and ncs
+                #vertices are ordered TL(0), TR(1), BR(2), BL(3) (clockwise) in cross-section for current (c) and next (n)
+
+
+
+                # n    0-----1
+                # c  0-----1 |
+                #    | |   | |
+                #    | 3---|-2
+                #    3-----2
+
+                #rotated....
+
+                # n    2-----3
+                # c  2-----3 |
+                #    | |   | |
+                #    | 1---|-0
+                #    1-----0
+
+
+                #triangular faces: -> offsetting next by 4, we get the indices for the faces wrt the current/next cross-sections
+                #c0, n0, c1             0, 4, 1
+                #c1, n0, n1             1, 4, 5
+                #n1, n2, c2             4, 6 ,2
+                #c2, c1, n1             2, 1, 5
+
+                #c2, n2, n3             2, 6, 7
+                #n3, n2, n3             7, 6, 7
+                #n3, n0, c0             7, 4, 0
+                #n0, c3, n3             4, 3, 7
+                #go round the faces clockwise
+                #face_vertices = [0,4,1,1,4,5,4,6,2,2,1,5,2,6,7,7,6,7,7,4,0,4,3,7]
+                face_vertices =  [0,1,5,
+                                  5,4,0,
+                                  2,3,7,
+                                  7,6,2,
+                                  1,2,6,
+                                  6,5,1,
+                                  4,7,3,
+                                  3,0,4]
+
+                #create our indices for the triangles set
+                #interleaving the normal index
+
+                for vertex in face_vertices:
+                    #we need to offset each face_vertex value by (4*cross section index)
+                    #so that we refer to the correct item in the vertices array
+                    # eg. the sequence should go,
+                    # cs[0] (+0) 0,4,1,1,4,5,4,6, 2,2,1,5,2,6, 7, 7, 6, 7, 7, 4,0,3,7
+                    # cs[1] (+4) 4,8,5,5,8,9,8,10,6,6,5,9,6,10,11,11,10,11,11,8,4,7,11
+                    # cs[2] (+8) 8,12......
+
+                    #these values are interleaved with an index to the normals array
+                    #this is currently all 0's, but otherwise the same ordering could be used
+
+                    indices.append(vertex + (pos*4)) #vertices
+                    #indices.append(0) #normals
+
+                if pos == 0:
+                    #Were at the start and also need an end cap
+                    print("Start of tube")
+                    end_faces = [0,1,2,2,3,0]
+                    #end_faces = [4,5,6,6,7,4]
+                    for vertex in end_faces:
+                        indices.append(vertex + (pos*4)) #vertices
+
+        #create collada sources
+        vert_src = source.FloatSource("tubeverts-array_"+str(ti), numpy.array(vertices), ('X', 'Y', 'Z'))
+        #normal_src = source.FloatSource("tubenormals-array_"+str(ti), numpy.array(normals), ('X', 'Y', 'Z'))
+
+        #create collada geometry for this tube
+        #geom = geometry.Geometry(mesh, "geometry_"+str(ti), "tube_"+str(ti), [vert_src, normal_src])
+        geom = geometry.Geometry(mesh, "geometry_"+str(ti), "tube_"+str(ti), [vert_src])
+
+        #create references to indices
+        input_list = source.InputList()
+        input_list.addInput(0, 'VERTEX', "#tubeverts-array_"+str(ti))
+        #input_list.addInput(1, 'NORMAL', "#tubenormals-array_"+str(ti))
+
+        #create triangle set
+        triset = geom.createTriangleSet(numpy.array(indices), input_list, "materialref")
+        triset.generateNormals()
+        triset.save()
+        print str(triset.vertex)
+        print str(triset.vertex_index)
+
+        geom.primitives.append(triset)
+        mesh.geometries.append(geom)
+
+        #create a node for this tube
+        matnode = scene.MaterialNode("materialref", mat, inputs=[])
+        geomnode = scene.GeometryNode(geom, [matnode])
+
+        node = scene.Node("node_"+str(ti), children=[geomnode])
+
+        #append this node to the nodelist
+        nodelist.append(node)
+
+    #add all nodes to the scene
+    print ("nodes: "+str(nodelist))
+    myscene = scene.Scene("myscene", nodelist)
+    mesh.scenes.append(myscene)
+    mesh.scene = myscene
+
+    axis = asset.UP_AXIS.Z_UP
+    mesh.assetInfo.upaxis = axis
+    mesh.write('test.dae')
+
+
 def parse_3d(infile):
     "Parse a .3D file to lists of stations, cross sections and traverses"
     survey = ''
@@ -36,9 +192,10 @@ def parse_3d(infile):
 
     #print the .3d header
     if(pimg):
-        print('File: '+ shell_args.input)
+        print('File: '+ infile)
         print('------\nHeader\n------')
         print('Title: ' + str(pimg.title))
+        survey_name=pimg.title
         print('.3d Version: ' + str(pimg.version))
         print('Datestamp: ' + str(pimg.datestamp))
         print('Level Separator: ' + str(pimg.separator))
@@ -175,28 +332,28 @@ def main(argv=None):
 
     parser = argparse.ArgumentParser(description='Dump Contents of Survex .3d file as text')
     parser.add_argument('-i', '--input', help='Input 3D File', required=True)
-    parser.add_argument('-r', '--ref_station', help='Station to georeference model to', required=True)
-    parser.add_argument('-rs', '--ref_station', help='Station name to georeference model to', required=True)
-    parser.add_argument('-re', '--ref_east', help='Reference station location Easting', required=True)
-    parser.add_argument('-rn', '--ref_north', help='Reference station location Northing', required=True)
-    parser.add_argument('-ra', '--ref_alt', help='Reference station altitude (m)', required=True)
-    parser.add_argument('-d', '--datum', help='Datum string to supply to Proj for georeferncing. Defaults to "epsg:28356" (#GDA94 (UTM))', required=False)
-    parser.add_argument('-g', '--datum', help='S', required=False)
+    #parser.add_argument('-r', '--ref_station', help='Station to georeference model to', required=True)
+    #parser.add_argument('-rs', '--ref_station', help='Station name to georeference model to', required=True)
+    #parser.add_argument('-re', '--ref_east', help='Reference station location Easting', required=True)
+    #parser.add_argument('-rn', '--ref_north', help='Reference station location Northing', required=True)
+    #parser.add_argument('-ra', '--ref_alt', help='Reference station altitude (m)', required=True)
+    #parser.add_argument('-d', '--datum', help='Datum string to supply to Proj for georeferncing. Defaults to "epsg:28356" (#GDA94 (UTM))', required=False)
+    #parser.add_argument('-g', '--datum', help='S', required=False)
 
 
-    parser.add_argument('-o', '--output', help='Output File', required=False)
-    parser.add_argument('-z', '--zip', help='zip contents to (.KMZ); automatically true for Collada output', required=False)
-    parser.add_argument('-c', '--collada', help='output geometry in Collada .dae format', required=False)
+    #parser.add_argument('-o', '--output', help='Output File', required=False)
+    #parser.add_argument('-z', '--zip', help='zip contents to (.KMZ); automatically true for Collada output', required=False)
+    #parser.add_argument('-c', '--collada', help='output geometry in Collada .dae format', required=False)
 
 
     shell_args, unparsed_args = parser.parse_known_args()
 
     #print shell_args.input
-
-    traverses, tubes, stations = parse_3d(shell_args.input)
+    infile = shell_args.input
+    traverses, tubes, stations = parse_3d(infile)
 
     #locate the reference station
-    refstation = shell_args.ref_station
+    #refstation = shell_args.ref_station
     print "Reference Station Name: %s" %(refstation)
     if stations.has_key(refstation):
         print ("Reference station found")
@@ -226,7 +383,7 @@ def main(argv=None):
     surveystyle="survey_style"
     doc = KML.kml(
         KML.Document(
-            KML.Name(str(pimg.title)),
+            KML.Name(str(survey_name)),
             KML.Style(
                 KML.IconStyle(
                     KML.scale(0.4),
@@ -250,8 +407,6 @@ def main(argv=None):
     )
 
 
-
-    cart_stations = {}
     kf = KML.Folder(KML.name("Stations"))
 
     for k,v in stations.iteritems():
@@ -299,14 +454,23 @@ def main(argv=None):
     last_right = vec3(0.0,0.0,0.0)
     U = [last_right,last_right,last_right,last_right]
 
-    #setup KML folder
-    kf = KML.Folder(KML.name("Tubes"))
+    if kmltubegeom==True:
+        #setup KML folder
+        kf = KML.Folder(KML.name("Tubes"))
 
+    else:
+        #Do Collada Doc Setup
+        #Create a list for the tube geometries
+        tube_geometries = []
 
     for tn,tube in enumerate(tubes):
         print "\n--------\nProcessing Tube: %d" %(tn)
         print "%d Segments" % len(tube)
         z_pitch_adjust = 0.0
+
+        #if we're outputting to Collada, create an empty list for all vertices in this tube
+        if kmltubegeom==False:
+            tube_geom=[]
 
         for vn, v_pres in enumerate(tube):
 
@@ -466,110 +630,108 @@ def main(argv=None):
                     (v_pres_v - (right * l) - (up * d))
                     ]
 
+            #if outputting tube gemoetry directly in KML
+            if kmltubegeom==True:
 
-            #now convert to lat,lon
+                vll = [0,0,0,0]
+                Ull = [0,0,0,0]
+                for vit, vp in enumerate(v):
+                    tubept = img_point()
+                    tubept.x = vp.x
+                    tubept.y = vp.y
+                    tubept.z = vp.z
 
-            vll = [0,0,0,0]
-            Ull = [0,0,0,0]
-            for vit, vp in enumerate(v):
-                tubept = img_point()
-                tubept.x = vp.x
-                tubept.y = vp.y
-                tubept.z = vp.z
+                    sLon,sLat,sAlt = ptocart(tubept, rs, rLon, rLat, geod)
+                    vll[vit] =[sLon, sLat, sAlt]
+                #print vll
+                #print "vll: %s" % (str(vll))
 
-                sLon,sLat,sAlt = ptocart(tubept, rs, rLon, rLat, geod)
-                vll[vit] =[sLon, sLat, sAlt]
-            #print vll
-            #print "vll: %s" % (str(vll))
+                #print "U = %s" %(U)
+                #print "v = %s" %(v)
+                for Uit, Up in enumerate(U):
+                    tubept = img_point()
+                    tubept.x = Up.x
+                    tubept.y = Up.y
+                    tubept.z = Up.z
 
-            #print "U = %s" %(U)
-            #print "v = %s" %(v)
-            for Uit, Up in enumerate(U):
-                tubept = img_point()
-                tubept.x = Up.x
-                tubept.y = Up.y
-                tubept.z = Up.z
+                    sLon,sLat,sAlt = ptocart(tubept, rs, rLon, rLat, geod)
+                    Ull[Uit] =[sLon, sLat, sAlt]
+                    #print "Ull:  %s" % (str(Ull))
+                if vn>0:
+                    for q in range(0,4):
+                        #if q==0:
+                        #    co = [vll[0], vll[1], Ull[1], Ull[0], vll[0]]
+                        #elif q==1:
+                        #    co = [vll[2], vll[3], Ull[3], Ull[2], vll[2]]
+                        #elif q==2:
+                        #    co = [vll[1], vll[2], Ull[2], Ull[1], vll[1]]
+                        #elif q==3:
+                        #    co = [vll[3], vll[0], Ull[0], Ull[3], vll[3]]
 
-                sLon,sLat,sAlt = ptocart(tubept, rs, rLon, rLat, geod)
-                Ull[Uit] =[sLon, sLat, sAlt]
-            #print "Ull:  %s" % (str(Ull))
-            if vn>0:
-                for q in range(0,4):
-                    #if q==0:
-                    #    co = [vll[0], vll[1], Ull[1], Ull[0], vll[0]]
-                    #elif q==1:
-                    #    co = [vll[2], vll[3], Ull[3], Ull[2], vll[2]]
-                    #elif q==2:
-                    #    co = [vll[1], vll[2], Ull[2], Ull[1], vll[1]]
-                    #elif q==3:
-                    #    co = [vll[3], vll[0], Ull[0], Ull[3], vll[3]]
+                        if q==0:
+                            co = [vll[0], Ull[0], Ull[1], vll[1], vll[0]]
+                        elif q==1:
+                            co = [vll[2], Ull[2], Ull[3], vll[3], vll[2]]
+                        elif q==2:
+                            co = [vll[1], Ull[1], Ull[2], vll[2], vll[1]]
+                        elif q==3:
+                            co = [vll[3], Ull[3], Ull[0], vll[0], vll[3]]
 
-                    if q==0:
-                        co = [vll[0], Ull[0], Ull[1], vll[1], vll[0]]
-                    elif q==1:
-                        co = [vll[2], Ull[2], Ull[3], vll[3], vll[2]]
-                    elif q==2:
-                        co = [vll[1], Ull[1], Ull[2], vll[2], vll[1]]
-                    elif q==3:
-                        co = [vll[3], Ull[3], Ull[0], vll[0], vll[3]]
+                        pm = KML.Placemark(
+
+                        KML.styleUrl('#{0}'.format(surveystyle)),
+                        KML.name("tube: %s, vertex: %s, quad: %s" % (str(tn), str(vn), str(q))),
+                        KML.Polygon(
+                                KML.outerBoundaryIs(
+                                    KML.LinearRing(
+                            KML.coordinates(''.join( ["%8.8f,%8.8f,%8.8f " % (leg[0], leg[1], leg[2]) for leg in co]))
+                                        )),
+                            KML.altitudeMode("absolute")
+                            ))
+                        kf.append(pm)
+
+                if tubepos == Tpos.FIRST or tubepos == Tpos.LAST:
+                    #draw end cap
+                    cap = [vll[3], vll[2], vll[1], vll[0]]
 
                     pm = KML.Placemark(
 
-                    KML.styleUrl('#{0}'.format(surveystyle)),
-                    KML.name("tube: %s, vertex: %s, quad: %s" % (str(tn), str(vn), str(q))),
-                    KML.Polygon(
-                            KML.outerBoundaryIs(
-                                KML.LinearRing(
-                        KML.coordinates(''.join( ["%8.8f,%8.8f,%8.8f " % (leg[0], leg[1], leg[2]) for leg in co]))
-                                    )),
-                        KML.altitudeMode("absolute")
-                        ))
+                        KML.styleUrl('#{0}'.format(surveystyle)),
+                        KML.name("tube: %s end cap" % (str(tn))),
+                        KML.Polygon(
+                                KML.outerBoundaryIs(
+                                    KML.LinearRing(
+                            KML.coordinates(''.join( ["%8.8f,%8.8f,%8.8f " % (leg[0], leg[1], leg[2]) for leg in cap]))
+                                        )),
+                            KML.altitudeMode("absolute")
+                            ))
                     kf.append(pm)
 
-            if tubepos == Tpos.FIRST or tubepos == Tpos.LAST:
-                #draw end cap
-                cap = [vll[3], vll[2], vll[1], vll[0]]
-
-                pm = KML.Placemark(
-
-                    KML.styleUrl('#{0}'.format(surveystyle)),
-                    KML.name("tube: %s end cap" % (str(tn))),
-                    KML.Polygon(
-                            KML.outerBoundaryIs(
-                                KML.LinearRing(
-                        KML.coordinates(''.join( ["%8.8f,%8.8f,%8.8f " % (leg[0], leg[1], leg[2]) for leg in cap]))
-                                    )),
-                        KML.altitudeMode("absolute")
-                        ))
-                kf.append(pm)
+            else:
+                #We are outputting to a Collada Document
+                #We need to calculate normals for each vertex so create lists of tubes/lruds/vertices
+                #then when we're done pass for post-processing
+                #for point in v:
+                #    tube_geom.append(point)
+                tube_geom.append(v)
 
 
-            doc.Document.append(kf)
-
-
-#if (draw) {
-##        if (segment > 0) {
- #       (this->*AddQuad)(v[0], v[1], U[1], U[0]);
- ##       (this->*AddQuad)(v[2], v[3], U[3], U[2]);
-  #      (this->*AddQuad)(v[1], v[2], U[2], U[1]);
-  #      (this->*AddQuad)(v[3], v[0], U[0], U[3]);
-  #      }
-#
- #       if (cover_end) {
-  #      (this->*AddQuad)(v[3], v[2], v[1], v[0]);
-
-
-     #assign after drawing
-
-
-
+            #copy current vertex to 'previous' for use with the 'next' vertex
             U[0] = v[0]
             U[1] = v[1]
             U[2] = v[2]
             U[3] = v[3]
 
+        if kmltubegeom==False:
+            tube_geometries.append(tube_geom)
 
+    #write the tube folder to the KML file
+    if kmltubegeom==True:
+        doc.Document.append(kf)
 
+    #pass the tube geometries to the Collada Handler
+    if kmltubegeom==False:
+        tubes_to_collada(tube_geometries)
 
     outfile = file(__file__.rstrip('.py')+'.kml','w')
     outfile.write(etree.tostring(doc, pretty_print=True))
