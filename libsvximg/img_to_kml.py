@@ -22,6 +22,7 @@ alt_offset = 300
 alt_exag = 1
 kmltubegeom = False
 
+tube_limit=0
 
 #globals
 survey_name=""
@@ -49,130 +50,130 @@ def tubes_to_collada(tube_geometries):
     nodelist=[]
 
     for ti, tube in enumerate(tube_geometries):
-        #Add each vertex to an array
-        vertices = []
-        normals = [0.5,0.5,0.5]
-        indices = []
+
+        if (tube_limit == 0) or (ti < tube_limit):
+            #Add each vertex to an array
+            vertices = []
+            normals = [0.5,0.5,0.5]
+            indices = []
 
 
-        for pos, cs in enumerate(tube):
-            print("Cross Section: "+str(pos))
-            #append the vertices for this cross-section
-            for v in cs:
-                print ("Vertice: "+str(v))
-                for coord in v:
-                    vertices.append(coord)
+            for pos, cs in enumerate(tube):
+                print("Cross Section: "+str(pos))
+                #append the vertices for this cross-section
+                for v in cs:
+                    print ("Vertice: "+str(v))
+                    for coord in v:
+                        vertices.append(coord)
 
-            if pos +1 == len(tube):
-                 #we've reached the end and just need to
-                 #add an end cap
-                 print("end of tube")
-                 #end_faces = [0,1,2,2,3,0]
-                 end_faces = [0,3,2,2,1,0]
-                 for vertex in end_faces:
-                    indices.append(vertex + (pos*4)) #vertices
-
-            else:
-                #we're at the start/middle and need the next section
-                #ncs = tube[pos+1]
-
-                #calculate our faces between cs and ncs
-                #vertices are ordered TL(0), TR(1), BR(2), BL(3) (clockwise) in cross-section for current (c) and next (n)
-
-
-
-                # n    0-----1
-                # c  0-----1 |
-                #    | |   | |
-                #    | 3---|-2
-                #    3-----2
-
-                #rotated....
-
-                # n    2-----3
-                # c  2-----3 |
-                #    | |   | |
-                #    | 1---|-0
-                #    1-----0
-
-
-                #triangular faces: -> offsetting next by 4, we get the indices for the faces wrt the current/next cross-sections
-                #c0, n0, c1             0, 4, 1
-                #c1, n0, n1             1, 4, 5
-                #n1, n2, c2             4, 6 ,2
-                #c2, c1, n1             2, 1, 5
-
-                #c2, n2, n3             2, 6, 7
-                #n3, n2, n3             7, 6, 7
-                #n3, n0, c0             7, 4, 0
-                #n0, c3, n3             4, 3, 7
-                #go round the faces clockwise
-                #face_vertices = [0,4,1,1,4,5,4,6,2,2,1,5,2,6,7,7,6,7,7,4,0,4,3,7]
-                face_vertices =  [0,1,5,
-                                  5,4,0,
-                                  2,3,7,
-                                  7,6,2,
-                                  1,2,6,
-                                  6,5,1,
-                                  4,7,3,
-                                  3,0,4]
-
-                #create our indices for the triangles set
-                #interleaving the normal index
-
-                for vertex in face_vertices:
-                    #we need to offset each face_vertex value by (4*cross section index)
-                    #so that we refer to the correct item in the vertices array
-                    # eg. the sequence should go,
-                    # cs[0] (+0) 0,4,1,1,4,5,4,6, 2,2,1,5,2,6, 7, 7, 6, 7, 7, 4,0,3,7
-                    # cs[1] (+4) 4,8,5,5,8,9,8,10,6,6,5,9,6,10,11,11,10,11,11,8,4,7,11
-                    # cs[2] (+8) 8,12......
-
-                    #these values are interleaved with an index to the normals array
-                    #this is currently all 0's, but otherwise the same ordering could be used
-
-                    indices.append(vertex + (pos*4)) #vertices
-                    #indices.append(0) #normals
-
-                if pos == 0:
-                    #Were at the start and also need an end cap
-                    print("Start of tube")
-                    end_faces = [0,1,2,2,3,0]
-                    #end_faces = [4,5,6,6,7,4]
-                    for vertex in end_faces:
+                if pos +1 == len(tube):
+                     #we've reached the end and just need to
+                     #add an end cap
+                     print("end of tube")
+                     end_faces = [0,1,2,2,3,0]
+                     for vertex in end_faces:
                         indices.append(vertex + (pos*4)) #vertices
 
-        #create collada sources
-        vert_src = source.FloatSource("tubeverts-array_"+str(ti), numpy.array(vertices), ('X', 'Y', 'Z'))
-        #normal_src = source.FloatSource("tubenormals-array_"+str(ti), numpy.array(normals), ('X', 'Y', 'Z'))
+                else:
+                    #we're at the start/middle and need the next section
+                    #ncs = tube[pos+1]
 
-        #create collada geometry for this tube
-        #geom = geometry.Geometry(mesh, "geometry_"+str(ti), "tube_"+str(ti), [vert_src, normal_src])
-        geom = geometry.Geometry(mesh, "geometry_"+str(ti), "tube_"+str(ti), [vert_src])
+                    #calculate our faces between cs and ncs
+                    #vertices are ordered TL(0), TR(1), BR(2), BL(3) (clockwise) in cross-section for current (c) and next (n)
 
-        #create references to indices
-        input_list = source.InputList()
-        input_list.addInput(0, 'VERTEX', "#tubeverts-array_"+str(ti))
-        #input_list.addInput(1, 'NORMAL', "#tubenormals-array_"+str(ti))
 
-        #create triangle set
-        triset = geom.createTriangleSet(numpy.array(indices), input_list, "materialref")
-        triset.generateNormals()
-        triset.save()
-        print str(triset.vertex)
-        print str(triset.vertex_index)
 
-        geom.primitives.append(triset)
-        mesh.geometries.append(geom)
+                    # n    0-----1
+                    # c  0-----1 |
+                    #    | |   | |
+                    #    | 3---|-2
+                    #    3-----2
 
-        #create a node for this tube
-        matnode = scene.MaterialNode("materialref", mat, inputs=[])
-        geomnode = scene.GeometryNode(geom, [matnode])
+                    #rotated....
 
-        node = scene.Node("node_"+str(ti), children=[geomnode])
+                    # n    2-----3
+                    # c  2-----3 |
+                    #    | |   | |
+                    #    | 1---|-0
+                    #    1-----0
 
-        #append this node to the nodelist
-        nodelist.append(node)
+
+                    #triangular faces: -> offsetting next by 4, we get the indices for the faces wrt the current/next cross-sections
+                    #c0, n0, c1             0, 4, 1
+                    #c1, n0, n1             1, 4, 5
+                    #n1, n2, c2             4, 6 ,2
+                    #c2, c1, n1             2, 1, 5
+
+                    #c2, n2, n3             2, 6, 7
+                    #n3, n2, n3             7, 6, 7
+                    #n3, n0, c0             7, 4, 0
+                    #n0, c3, n3             4, 3, 7
+                    #go round the faces clockwise
+                    #face_vertices = [0,4,1,1,4,5,4,6,2,2,1,5,2,6,7,7,6,7,7,4,0,4,3,7]
+                    face_vertices =  [0,1,5,
+                                      5,4,0,
+                                      2,3,7,
+                                      7,6,2,
+                                      1,2,6,
+                                      6,5,1,
+                                      4,7,3,
+                                      3,0,4]
+
+                    #create our indices for the triangles set
+                    #interleaving the normal index
+
+                    for vertex in face_vertices:
+                        #we need to offset each face_vertex value by (4*cross section index)
+                        #so that we refer to the correct item in the vertices array
+                        # eg. the sequence should go,
+                        # cs[0] (+0) 0,4,1,1,4,5,4,6, 2,2,1,5,2,6, 7, 7, 6, 7, 7, 4,0,3,7
+                        # cs[1] (+4) 4,8,5,5,8,9,8,10,6,6,5,9,6,10,11,11,10,11,11,8,4,7,11
+                        # cs[2] (+8) 8,12......
+
+                        #these values are interleaved with an index to the normals array
+                        #this is currently all 0's, but otherwise the same ordering could be used
+
+                        indices.append(vertex + (pos*4)) #vertices
+                        #indices.append(0) #normals
+
+                    if pos == 0:
+                        #Were at the start and also need an end cap
+                        print("Start of tube")
+                        end_faces = [0,3,2,2,1,0]
+                        for vertex in end_faces:
+                            indices.append(vertex + (pos*4)) #vertices
+
+            #create collada sources
+            vert_src = source.FloatSource("tubeverts-array_"+str(ti), numpy.array(vertices), ('X', 'Y', 'Z'))
+            #normal_src = source.FloatSource("tubenormals-array_"+str(ti), numpy.array(normals), ('X', 'Y', 'Z'))
+
+            #create collada geometry for this tube
+            #geom = geometry.Geometry(mesh, "geometry_"+str(ti), "tube_"+str(ti), [vert_src, normal_src])
+            geom = geometry.Geometry(mesh, "geometry_"+str(ti), "tube_"+str(ti), [vert_src])
+
+            #create references to indices
+            input_list = source.InputList()
+            input_list.addInput(0, 'VERTEX', "#tubeverts-array_"+str(ti))
+            #input_list.addInput(1, 'NORMAL', "#tubenormals-array_"+str(ti))
+
+            #create triangle set
+            triset = geom.createTriangleSet(numpy.array(indices), input_list, "materialref")
+            triset.generateNormals()
+            triset.save()
+            print str(triset.vertex)
+            print str(triset.vertex_index)
+
+            geom.primitives.append(triset)
+            mesh.geometries.append(geom)
+
+            #create a node for this tube
+            matnode = scene.MaterialNode("materialref", mat, inputs=[])
+            geomnode = scene.GeometryNode(geom, [matnode])
+
+            node = scene.Node("node_"+str(ti), children=[geomnode])
+
+            #append this node to the nodelist
+            nodelist.append(node)
 
     #add all nodes to the scene
     print ("nodes: "+str(nodelist))
@@ -451,8 +452,8 @@ def main(argv=None):
 
     ######Now calculate the LRUD tubes
     up_v = vec3(0.0,0.0,1.0)
-    last_right = vec3(0.0,0.0,0.0)
-    U = [last_right,last_right,last_right,last_right]
+    last_right = vec3(1.0,0.0,0.0)
+    U = [0,0,0,0]
 
     if kmltubegeom==True:
         #setup KML folder
@@ -464,263 +465,291 @@ def main(argv=None):
         tube_geometries = []
 
     for tn,tube in enumerate(tubes):
-        print "\n--------\nProcessing Tube: %d" %(tn)
-        print "%d Segments" % len(tube)
-        z_pitch_adjust = 0.0
+        if (tube_limit == 0) or (tn < tube_limit):
+            print "\n--------\nProcessing Tube: %d" %(tn)
+            print "%d Segments" % len(tube)
+            z_pitch_adjust = 0.0
 
-        #if we're outputting to Collada, create an empty list for all vertices in this tube
-        if kmltubegeom==False:
-            tube_geom=[]
+            #if we're outputting to Collada, create an empty list for all vertices in this tube
+            if kmltubegeom==False:
+                tube_geom=[]
 
-        for vn, v_pres in enumerate(tube):
+            for vn, v_pres in enumerate(tube):
 
-            right = vec3(0,0,0)
-            up = vec3(0,0,0)
-            tubepos = Tpos.INVALID
+                right = vec3(0,0,0)
+                up = vec3(0,0,0)
+                tubepos = Tpos.INVALID
 
-            #print right
-            if vn == 0:
-                #if this is the first segment we need to calculate the present vertex
-                tubepos = Tpos.FIRST
+                #print right
+                if vn == 0:
+                    #if this is the first segment we need to calculate the present vertex
+                    tubepos = Tpos.FIRST
 
-                #why is XSect treated as a list here?
-                #Calculate 'current' and 'next' vectors
-                v_pres = v_pres[0]
-                print "========\nVertex: %s" %(vn)
-                print "Vertex pres: l: %8.2f r: %8.2f u: %8.2f d: %8.2f station: %s" % (v_pres.l, v_pres.r, v_pres.u, v_pres.d, v_pres.station)
-                #get the X,Y,Z for this station
-                v_pres_pos = stations[v_pres.station]
-                v_pres_v = vec3(v_pres_pos.x, v_pres_pos.y, v_pres_pos.z)
-                print "Vertex pres: %s" % (str(v_pres_v))
+                    #why is XSect treated as a list here?
+                    #Calculate 'current' and 'next' vectors
+                    v_pres = v_pres[0]
+                    print "========\nVertex: %s" %(vn)
+                    print "Vertex pres: l: %8.2f r: %8.2f u: %8.2f d: %8.2f station: %s" % (v_pres.l, v_pres.r, v_pres.u, v_pres.d, v_pres.station)
+                    #get the X,Y,Z for this station
+                    v_pres_pos = stations[v_pres.station]
+                    v_pres_v = vec3(v_pres_pos.x, v_pres_pos.y, v_pres_pos.z)
+                    print "Vertex pres: %s" % (str(v_pres_v))
 
-            #otherwise shift down and calculate the next segment
-            else:
-                #intermediary or last segment?
-                if vn < len(tube)-1:
-                    tubepos = Tpos.INTER
+                #otherwise shift down and calculate the next segment
                 else:
-                    tubepos = Tpos.LAST
+                    #intermediary or last segment?
+                    if vn < len(tube)-1:
+                        tubepos = Tpos.INTER
+                    else:
+                        tubepos = Tpos.LAST
 
-                v_prev_v = v_pres_v
-                v_pres_v = v_next_v
+                    v_prev_v = v_pres_v
+                    v_pres_v = v_next_v
 
-                v_prev_pos = v_pres_pos
-                v_pres_pos = v_next_pos
+                    v_prev_pos = v_pres_pos
+                    v_pres_pos = v_next_pos
 
-                #we still need the present lrud
-                v_pres = v_pres[0]
+                    #we still need the present lrud
+                    v_pres = v_pres[0]
 
 
-            #if not the last segment, calculate next
-            if tubepos == Tpos.FIRST or tubepos == Tpos.INTER:
-                print("Need 'next' Vertex")
-                v_next = tube[vn + 1]
-                v_next = v_next[0]
-                print "Vertex next: l: %8.2f r: %8.2f u: %8.2f d: %8.2f station: %s" % (v_next.l, v_next.r, v_next.u, v_next.d, v_next.station)
-                v_next_pos = stations[v_next.station]
-                v_next_v = vec3(v_next_pos.x, v_next_pos.y, v_next_pos.z)
-                print "Vertex 'next' %s" % (str(v_next_v))
+                #if not the last segment, calculate next
+                if tubepos == Tpos.FIRST or tubepos == Tpos.INTER:
+                    print("Need 'next' Vertex")
+                    v_next = tube[vn + 1]
+                    v_next = v_next[0]
+                    print "Vertex next: l: %8.2f r: %8.2f u: %8.2f d: %8.2f station: %s" % (v_next.l, v_next.r, v_next.u, v_next.d, v_next.station)
+                    v_next_pos = stations[v_next.station]
+                    v_next_v = vec3(v_next_pos.x, v_next_pos.y, v_next_pos.z)
+                    print "Vertex 'next' %s" % (str(v_next_v))
 
-            #This vector rotation code is ported from the C++ implementation in gfxcore.cc
-            #If this is the first segment we don't have the previous vector to project from
-            if tubepos == Tpos.FIRST:
-                print "First Segment"
-                leg_v = vec3(v_next_v - v_pres_v)
-                right = cross(leg_v,up_v)
-                if abs(right) == 0:
-                    right = last_right
+                #This vector rotation code is ported from the C++ implementation in gfxcore.cc
+                #If this is the first segment we don't have the previous vector to project from
+                if tubepos == Tpos.FIRST:
+                    print "First Segment"
+                    leg_v = vec3(v_next_v - v_pres_v)
+                    #right = cross(leg_v,up_v)
+                    right = leg_v
+                    right = right.cross(up_v)
+                    if abs(right) == 0:
+                        right = last_right
 
-                    up = up_v
-                else:
+                        up = up_v
+                    else:
+                        last_right = right
+                        up = up_v
+
+                elif tubepos == Tpos.LAST:
+                    print "Last Segment"
+                    leg_v = vec3(v_pres_v - v_prev_v)
+                    #right = cross(leg_v,up_v)
+                    right = leg_v
+                    right = right.cross(up_v)
+
+
+                    if abs(right) == 0:
+                        right = vec3(last_right.x, last_right.y, 0.0)
+
+                        up = up_v
+                    else:
+                        last_right = right
+                        up = up_v
+
+
+                elif tubepos == Tpos.INTER:
+                    print "Intermediary Segment"
+                    leg1_v = vec3(v_pres_v - v_prev_v)
+                    leg2_v = vec3(v_next_v - v_pres_v)
+
+                    #r1 = cross(leg1_v, up_v)
+                    #r2 = cross(leg2_v, up_v)
+                    r1 = leg1_v
+                    r2 = leg2_v
+                    r1 = r1.cross(up_v)
+                    r2 = r2.cross(up_v)
+
+
+                    r1 = r1.normalize()
+                    r2 = r2.normalize()
+
+
+                    right = vec3(r1 + r2)
+                    #right = right.normalize()
+
+
+                    print("right = %8.2f, r1 = %8.2f, r2 = %8.2f, up_v = %8.2f" % (abs(right), abs(r1), abs(r2), abs(up_v)))
+                    print str(right)
+                    print str(r1)
+                    print str(r2)
+                    print str(up_v)
+                    if abs(right) == 0:
+                        print("abs right = 0")
+                        #"mid-pitch case"
+                        right = last_right
+
+                    if abs(r1) == 0:
+                        print("abs r1 = 0")
+                        n = leg1_v.normalize()
+                        z_pitch_adjust = n.z
+                        up = up_v
+                        shift = 0
+                        maxdotp = 0.0
+                        right = right.normalize()
+                        up = up.normalize()
+
+                        vec = vec3(up - right)
+
+                        for orient in range(0, 3):
+                            tmp = vec3(U[orient] - v_prev_v)
+                            tmp = tmp.normalize()
+                            dotp = vec * tmp
+                            if dotp > maxdotp:
+                                maxdotp = dotp
+                                shift=orient
+
+                        if shift:
+                            if shift !=2:
+
+                                temp = U[0]
+                                U[0] = U[shift]
+                                U[shift] = U[2]
+                                U[2] = U[shift^2]
+                                U[shift^2] = temp
+                            else:
+                                U[0],U[2]=U[2],U[0]
+                                U[1],U[3]=U[3],U[1]
+
+                    elif abs(r2) == 0:
+                        print("abs r2 = 0")
+                        n = leg2_v
+                        n = n.normalize()
+                        z_pitch_adjust = n.z
+                        up = up_v
+
+                    else:
+                        print ("else...")
+                        up = up_v
+
                     last_right = right
-                    up = up_v
 
-            elif tubepos == Tpos.LAST:
-                print "Last Segment"
-                leg_v = vec3(v_pres_v - v_prev_v)
-                right = cross(leg_v, up_v)
+                #print right
+                #print abs(right)
+                #if abs(right) > 1:
+                right = right.normalize()
+                #print right
+                #print abs(right)
+                up = up.normalize()
+                z_pitch_adjust = 0.2
+                if z_pitch_adjust != 0:
+                    up = up + vec3(0, 0, abs(z_pitch_adjust))
 
+                l = abs(v_pres.l)
+                r = abs(v_pres.r)
+                u = abs(v_pres.u)
+                d = abs(v_pres.d)
 
-                if abs(right) == 0:
-                    right = vec3(last_right.x, last_right.y, 0.0)
+                #l=l+1.1
+                #r=r+1.1
+                #u=u+1.1
+                #d=d+1.1
 
-                    up = up_v
-                else:
-                    last_right = right
-                    up = up_v
+                v = [(v_pres_v - (right * l) + (up * u)),
+                        (v_pres_v + (right * r) + (up * u)),
+                        (v_pres_v + (right * r) - (up * d)),
+                        (v_pres_v - (right * l) - (up * d))
+                        ]
 
+                #if outputting tube gemoetry directly in KML
+                if kmltubegeom==True:
 
-            elif tubepos == Tpos.INTER:
-                print "Intermediary Segment"
-                leg1_v = vec3(v_pres_v - v_prev_v)
-                leg2_v = vec3(v_next_v - v_pres_v)
+                    vll = [0,0,0,0]
+                    Ull = [0,0,0,0]
+                    for vit, vp in enumerate(v):
+                        tubept = img_point()
+                        tubept.x = vp.x
+                        tubept.y = vp.y
+                        tubept.z = vp.z
 
-                r1 = cross(leg1_v, up_v)
-                r2 = cross(leg2_v, up_v)
+                        sLon,sLat,sAlt = ptocart(tubept, rs, rLon, rLat, geod)
+                        vll[vit] =[sLon, sLat, sAlt]
+                    #print vll
+                    #print "vll: %s" % (str(vll))
 
+                    #print "U = %s" %(U)
+                    #print "v = %s" %(v)
+                    for Uit, Up in enumerate(U):
+                        tubept = img_point()
+                        tubept.x = Up.x
+                        tubept.y = Up.y
+                        tubept.z = Up.z
 
-                r1 = r1.normalize()
-                r2 = r2.normalize()
+                        sLon,sLat,sAlt = ptocart(tubept, rs, rLon, rLat, geod)
+                        Ull[Uit] =[sLon, sLat, sAlt]
+                        #print "Ull:  %s" % (str(Ull))
+                    if vn>0:
+                        for q in range(0,4):
+                            #if q==0:
+                            #    co = [vll[0], vll[1], Ull[1], Ull[0], vll[0]]
+                            #elif q==1:
+                            #    co = [vll[2], vll[3], Ull[3], Ull[2], vll[2]]
+                            #elif q==2:
+                            #    co = [vll[1], vll[2], Ull[2], Ull[1], vll[1]]
+                            #elif q==3:
+                            #    co = [vll[3], vll[0], Ull[0], Ull[3], vll[3]]
 
+                            if q==0:
+                                co = [vll[0], Ull[0], Ull[1], vll[1], vll[0]]
+                            elif q==1:
+                                co = [vll[2], Ull[2], Ull[3], vll[3], vll[2]]
+                            elif q==2:
+                                co = [vll[1], Ull[1], Ull[2], vll[2], vll[1]]
+                            elif q==3:
+                                co = [vll[3], Ull[3], Ull[0], vll[0], vll[3]]
 
-                right = vec3(r1 + r2)
+                            pm = KML.Placemark(
 
+                            KML.styleUrl('#{0}'.format(surveystyle)),
+                            KML.name("tube: %s, vertex: %s, quad: %s" % (str(tn), str(vn), str(q))),
+                            KML.Polygon(
+                                    KML.outerBoundaryIs(
+                                        KML.LinearRing(
+                                KML.coordinates(''.join( ["%8.8f,%8.8f,%8.8f " % (leg[0], leg[1], leg[2]) for leg in co]))
+                                            )),
+                                KML.altitudeMode("absolute")
+                                ))
+                            kf.append(pm)
 
-                if abs(right) == 0:
-                    #"mid-pitch case"
-                    right = last_right
-
-                if abs(r1) == 0:
-                    n = leg1_v.normalize()
-                    z_pitch_adjust = n.z
-                    up = up_v
-                    shift = 0
-                    maxdotp = 0.0
-                    right = right.normalize()
-                    up = up.normalize()
-
-                    vec = vec3(up - right)
-
-                    for orient in range(0, 3):
-                        tmp = vec3(U[orient] - v_prev_v)
-                        tmp = tmp.normalize()
-                        dotp = vec * tmp
-                        if dotp > maxdotp:
-                            maxdotp = dotp
-                            shift=orient
-
-                    if shift:
-                        if shift !=2:
-
-                            temp = U[0]
-                            U[0] = U[shift]
-                            U[shift] = U[2]
-                            U[2] = U[shift^2]
-                            U[shift^2] = temp
-                        else:
-                            U[0],U[2]=U[2],U[0]
-                            U[1],U[3]=U[3],U[1]
-
-                elif abs(r2) == 0:
-                    n = leg2_v
-                    n = n.normalize()
-                    z_pitch_adjust = n.z
-                    up = up_v
-
-                else:
-                    up = up_v
-
-                last_right = right
-
-
-            right = right.normalize()
-            up = up.normalize()
-
-            if z_pitch_adjust != 0:
-                up = up + vec3(0, 0, abs(z_pitch_adjust))
-
-            l = abs(v_pres.l)
-            r = abs(v_pres.r)
-            u = abs(v_pres.u)
-            d = abs(v_pres.d)
-
-            v = [(v_pres_v - (right * l) + (up * u)),
-                    (v_pres_v + (right * r) + (up * u)),
-                    (v_pres_v + (right * r) - (up * d)),
-                    (v_pres_v - (right * l) - (up * d))
-                    ]
-
-            #if outputting tube gemoetry directly in KML
-            if kmltubegeom==True:
-
-                vll = [0,0,0,0]
-                Ull = [0,0,0,0]
-                for vit, vp in enumerate(v):
-                    tubept = img_point()
-                    tubept.x = vp.x
-                    tubept.y = vp.y
-                    tubept.z = vp.z
-
-                    sLon,sLat,sAlt = ptocart(tubept, rs, rLon, rLat, geod)
-                    vll[vit] =[sLon, sLat, sAlt]
-                #print vll
-                #print "vll: %s" % (str(vll))
-
-                #print "U = %s" %(U)
-                #print "v = %s" %(v)
-                for Uit, Up in enumerate(U):
-                    tubept = img_point()
-                    tubept.x = Up.x
-                    tubept.y = Up.y
-                    tubept.z = Up.z
-
-                    sLon,sLat,sAlt = ptocart(tubept, rs, rLon, rLat, geod)
-                    Ull[Uit] =[sLon, sLat, sAlt]
-                    #print "Ull:  %s" % (str(Ull))
-                if vn>0:
-                    for q in range(0,4):
-                        #if q==0:
-                        #    co = [vll[0], vll[1], Ull[1], Ull[0], vll[0]]
-                        #elif q==1:
-                        #    co = [vll[2], vll[3], Ull[3], Ull[2], vll[2]]
-                        #elif q==2:
-                        #    co = [vll[1], vll[2], Ull[2], Ull[1], vll[1]]
-                        #elif q==3:
-                        #    co = [vll[3], vll[0], Ull[0], Ull[3], vll[3]]
-
-                        if q==0:
-                            co = [vll[0], Ull[0], Ull[1], vll[1], vll[0]]
-                        elif q==1:
-                            co = [vll[2], Ull[2], Ull[3], vll[3], vll[2]]
-                        elif q==2:
-                            co = [vll[1], Ull[1], Ull[2], vll[2], vll[1]]
-                        elif q==3:
-                            co = [vll[3], Ull[3], Ull[0], vll[0], vll[3]]
+                    if tubepos == Tpos.FIRST or tubepos == Tpos.LAST:
+                        #draw end cap
+                        cap = [vll[3], vll[2], vll[1], vll[0]]
 
                         pm = KML.Placemark(
 
-                        KML.styleUrl('#{0}'.format(surveystyle)),
-                        KML.name("tube: %s, vertex: %s, quad: %s" % (str(tn), str(vn), str(q))),
-                        KML.Polygon(
-                                KML.outerBoundaryIs(
-                                    KML.LinearRing(
-                            KML.coordinates(''.join( ["%8.8f,%8.8f,%8.8f " % (leg[0], leg[1], leg[2]) for leg in co]))
-                                        )),
-                            KML.altitudeMode("absolute")
-                            ))
+                            KML.styleUrl('#{0}'.format(surveystyle)),
+                            KML.name("tube: %s end cap" % (str(tn))),
+                            KML.Polygon(
+                                    KML.outerBoundaryIs(
+                                        KML.LinearRing(
+                                KML.coordinates(''.join( ["%8.8f,%8.8f,%8.8f " % (leg[0], leg[1], leg[2]) for leg in cap]))
+                                            )),
+                                KML.altitudeMode("absolute")
+                                ))
                         kf.append(pm)
 
-                if tubepos == Tpos.FIRST or tubepos == Tpos.LAST:
-                    #draw end cap
-                    cap = [vll[3], vll[2], vll[1], vll[0]]
-
-                    pm = KML.Placemark(
-
-                        KML.styleUrl('#{0}'.format(surveystyle)),
-                        KML.name("tube: %s end cap" % (str(tn))),
-                        KML.Polygon(
-                                KML.outerBoundaryIs(
-                                    KML.LinearRing(
-                            KML.coordinates(''.join( ["%8.8f,%8.8f,%8.8f " % (leg[0], leg[1], leg[2]) for leg in cap]))
-                                        )),
-                            KML.altitudeMode("absolute")
-                            ))
-                    kf.append(pm)
-
-            else:
-                #We are outputting to a Collada Document
-                #We need to calculate normals for each vertex so create lists of tubes/lruds/vertices
-                #then when we're done pass for post-processing
-                #for point in v:
-                #    tube_geom.append(point)
-                tube_geom.append(v)
+                else:
+                    #We are outputting to a Collada Document
+                    #We need to calculate normals for each vertex so create lists of tubes/lruds/vertices
+                    #then when we're done pass for post-processing
+                    #for point in v:
+                    #    tube_geom.append(point)
+                    tube_geom.append(v)
 
 
-            #copy current vertex to 'previous' for use with the 'next' vertex
-            U[0] = v[0]
-            U[1] = v[1]
-            U[2] = v[2]
-            U[3] = v[3]
+                #copy current vertex to 'previous' for use with the 'next' vertex
+                U[0] = v[0]
+                U[1] = v[1]
+                U[2] = v[2]
+                U[3] = v[3]
 
         if kmltubegeom==False:
             tube_geometries.append(tube_geom)
