@@ -10,11 +10,15 @@ jobs:
   package:
     runs-on: ubuntu-20.04
     steps:
-      - name: package
-        run: make dist
-      - name: Upload package artifact
-        uses: actions/upload-artifact@v2
-        with:
+    - name: autoconf
+      run: autoreconf -fiv
+    - name: configure
+      run: ./configure
+    - name: package
+      run: make dist
+    - name: Upload package artifact
+      uses: actions/upload-artifact@v2
+      with:
           name: survex-source-package
           path: survex-?.?.?.tar.gz
   build:
