@@ -13,6 +13,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: apt packages
+      run: apt-get update && export DEBIAN_FRONTEND=noninteractive && apt-get -y install --no-install-recommends automake pkg-config gcc libwxgtk3.0-gtk3-dev libavcodec-dev libavformat-dev libproj-dev libswscale-dev mesa-common-dev libglu1-mesa-dev libx11-dev libxext-dev ghostscript netpbm x11proto-core-dev liblocale-po-perl unifont docbook-utils w3m
     - name: autoconf
       run: autoreconf -fiv
     - name: configure
