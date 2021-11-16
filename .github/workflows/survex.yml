@@ -10,6 +10,7 @@ jobs:
   package:
     runs-on: ubuntu-20.04
     steps:
+    - uses: actions/checkout@v2
     - name: autoconf
       run: autoreconf -fiv
     - name: configure
