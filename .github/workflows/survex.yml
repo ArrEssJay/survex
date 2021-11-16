@@ -9,17 +9,17 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
     - uses: actions/checkout@v2
-    - name: make release
-      run: ./make_release
+    - name: autoconf
+      run: autoreconf -fiv
     - name: configure
       run: ./configure
     - name: make
       run: make
-    - name: make check
+    - name: make check  
       run: make check
     - name: make distcheck
       run: make distcheck
