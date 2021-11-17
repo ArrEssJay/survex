@@ -39,7 +39,7 @@ jobs:
               with:
                   name: survex-source-package
             - name: unzip
-              run: mkdir packaged-src tar -xvf survex-?.?.?.tar.gz -C packaged-src --strip-components=1 && cd packaged-src
+              run: mkdir packaged-src && tar -xvf survex-?.?.?.tar.gz -C packaged-src --strip-components=1 && cd packaged-src
             - name: dependencies
               run: |
                   if [ "$RUNNER_OS" == "Linux" ]; then
