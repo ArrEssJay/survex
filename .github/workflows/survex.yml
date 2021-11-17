@@ -1,62 +1,68 @@
 name: C/C++ CI
 
 on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+    push:
+        branches: [master]
+    pull_request:
+        branches: [master]
 
 jobs:
-  package:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: packages
-      run: sudo apt-get update && export DEBIAN_FRONTEND=noninteractive && sudo apt-get -y install --no-install-recommends automake pkg-config gcc g++ libwxgtk3.0-gtk3-dev libavcodec-dev libavformat-dev libproj-dev libswscale-dev mesa-common-dev libglu1-mesa-dev libx11-dev libxext-dev ghostscript netpbm x11proto-core-dev liblocale-po-perl unifont docbook-utils w3m gettext inkscape && inkscape --version
-    - name: autoconf
-      run: autoreconf -fiv
-    - name: configure
-      run: ./configure
-    - name: package
-      run: make dist
-    - name: Upload package artifact
-      uses: actions/upload-artifact@v2
-      with:
-          name: survex-source-package
-          path: survex-?.?.?.tar.gz
-  build:
-    needs: package
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-       os: [macos-10.15, ubuntu-latest]
+    package:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v2
+            - name: inkscape ppa
+              run: sudo add-apt-repository universe && sudo add-apt-repository ppa:inkscape.dev/stable
+            - name: dependencies
+              run: sudo apt-get update && export DEBIAN_FRONTEND=noninteractive && sudo apt-get -y install --no-install-recommends automake pkg-config gcc g++ libwxgtk3.0-gtk3-dev libavcodec-dev libavformat-dev libproj-dev libswscale-dev mesa-common-dev libglu1-mesa-dev libx11-dev libxext-dev ghostscript netpbm x11proto-core-dev liblocale-po-perl unifont docbook-utils w3m gettext inkscape
+            - name: autoconf
+              run: autoreconf -fiv
+            - name: configure
+              run: ./configure
+            - name: package
+              run: make dist
+            - name: Upload package artifact
+              uses: actions/upload-artifact@v2
+              with:
+                  name: survex-source-package
+                  path: survex-?.?.?.tar.gz
+    build:
+        needs: package
+        runs-on: ${{ matrix.os }}
+        strategy:
+            matrix:
+                os: [macos-10.15, ubuntu-latest]
 
-    steps:
-    - uses: actions/checkout@v2
-    - name: packages
-      run: |
-        if [ "$RUNNER_OS" == "Linux" ]; then
-          sudo apt-get update && export DEBIAN_FRONTEND=noninteractive && sudo apt-get -y install --no-install-recommends automake pkg-config gcc g++ libwxgtk3.0-gtk3-dev libavcodec-dev libavformat-dev libproj-dev libswscale-dev mesa-common-dev libglu1-mesa-dev libx11-dev libxext-dev ghostscript netpbm x11proto-core-dev liblocale-po-perl unifont docbook-utils w3m gettext inkscape
-        elif [ "$RUNNER_OS" == "macOS" ]; then
-          brew install autoconf automake ffmpeg gettext gnu-tar netpbm proj wxmac 
-        ##homebrew/cask-fonts/font-gnu-unifont
-        else
-          echo "$RUNNER_OS not supported"
-          exit 1
-        fi
-    - name: prebuild
-      run: |
-        if [ "$RUNNER_OS" == "macOS" ]; then
-          brew link --force gettext
-          sudo cpan -T -i Locale::PO
-          echo '[ $SHLVL -eq 1 ] && eval "$(perl -I$HOME/perl5/lib/perl5 -Mlocal::lib)"' >> ~/.bashrc
-          cp /usr/local/Caskroom/font-gnu-unifont/14.0.01/unifont-14.0.01/font/precompiled/unifont-14.0.01.hex ./lib/unifont.hex
-        fi
-    - name: autoconf
-      run: autoreconf -fiv
-    - name: configure
-      run: ./configure
-    - name: make
-      run: make
-    #  - name: check
-    #   run: make check
+        steps:
+            - uses: actions/download-artifact@v2
+              with:
+                  name: survex-source-package
+            - name: "Echo download path"
+              run: echo ${{steps.download.outputs.download-path}}
+            - name: dependencies
+              run: |
+                  if [ "$RUNNER_OS" == "Linux" ]; then
+                    sudo apt-get update && export DEBIAN_FRONTEND=noninteractive && sudo apt-get -y install --no-install-recommends automake pkg-config gcc g++ libwxgtk3.0-gtk3-dev libavcodec-dev libavformat-dev libproj-dev libswscale-dev mesa-common-dev libglu1-mesa-dev libx11-dev libxext-dev ghostscript netpbm x11proto-core-dev liblocale-po-perl unifont docbook-utils w3m gettext inkscape
+                  elif [ "$RUNNER_OS" == "macOS" ]; then
+                    brew install autoconf automake ffmpeg gettext gnu-tar netpbm proj wxmac 
+                  ##homebrew/cask-fonts/font-gnu-unifont
+                  else
+                    echo "$RUNNER_OS not supported"
+                    exit 1
+                  fi
+            - name: environment
+              run: |
+                  if [ "$RUNNER_OS" == "macOS" ]; then
+                    brew link --force gettext
+                    sudo cpan -T -i Locale::PO
+                    echo '[ $SHLVL -eq 1 ] && eval "$(perl -I$HOME/perl5/lib/perl5 -Mlocal::lib)"' >> ~/.bashrc
+                    cp /usr/local/Caskroom/font-gnu-unifont/14.0.01/unifont-14.0.01/font/precompiled/unifont-14.0.01.hex ./lib/unifont.hex
+                  fi
+            - name: autoconf
+              run: autoreconf -fiv
+            - name: configure
+              run: ./configure
+            - name: make
+              run: make
+        #  - name: check
+        #   run: make check
