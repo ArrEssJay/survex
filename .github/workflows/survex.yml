@@ -12,7 +12,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: packages
-      run: sudo apt-get update && export DEBIAN_FRONTEND=noninteractive && sudo apt-get -y install --no-install-recommends automake pkg-config gcc g++ libwxgtk3.0-gtk3-dev libavcodec-dev libavformat-dev libproj-dev libswscale-dev mesa-common-dev libglu1-mesa-dev libx11-dev libxext-dev ghostscript netpbm x11proto-core-dev liblocale-po-perl unifont docbook-utils w3m gettext inkscape
+      run: sudo apt-get update && export DEBIAN_FRONTEND=noninteractive && sudo apt-get -y install --no-install-recommends automake pkg-config gcc g++ libwxgtk3.0-gtk3-dev libavcodec-dev libavformat-dev libproj-dev libswscale-dev mesa-common-dev libglu1-mesa-dev libx11-dev libxext-dev ghostscript netpbm x11proto-core-dev liblocale-po-perl unifont docbook-utils w3m gettext inkscape && inkscape --version
     - name: autoconf
       run: autoreconf -fiv
     - name: configure
