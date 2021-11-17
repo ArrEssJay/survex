@@ -38,8 +38,8 @@ jobs:
               id: download
               with:
                   name: survex-source-package
-            - name: "Echo download path"
-              run: echo ${{steps.download.outputs.download-path}}
+            - name: unzip
+              run: mkdir packaged-src tar -xvf survex-?.?.?.tar.gz -C packaged-src --strip-components=1 && cd packaged-src
             - name: dependencies
               run: |
                   if [ "$RUNNER_OS" == "Linux" ]; then
