@@ -39,7 +39,7 @@ jobs:
               with:
                   name: survex-source-package
             - name: unzip
-              run: mkdir packaged-src && tar -C packaged-src --strip-components=1 -xvf survex-?.?.?.tar.gz && cd packaged-src
+              run: mkdir packaged-src && tar -C packaged-src --strip-components=1 -xvf survex-?.?.?.tar.gz
             - name: dependencies
               run: |
                   if [ "$RUNNER_OS" == "Linux" ]; then
@@ -59,11 +59,8 @@ jobs:
                     echo '[ $SHLVL -eq 1 ] && eval "$(perl -I$HOME/perl5/lib/perl5 -Mlocal::lib)"' >> ~/.bashrc
                     cp /usr/local/Caskroom/font-gnu-unifont/14.0.01/unifont-14.0.01/font/precompiled/unifont-14.0.01.hex ./lib/unifont.hex
                   fi
-            - name: autoconf
-              run: autoreconf -fiv
-            - name: configure
-              run: ./configure
-            - name: make
-              run: make
+            - name: build
+              working-directory: packaged-src
+              run: autoreconf -fiv && ./configure && make
         #  - name: check
         #   run: make check
