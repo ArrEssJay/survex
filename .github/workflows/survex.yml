@@ -40,10 +40,12 @@ jobs:
           name: survex-source-package
       - name: unzip
         run: mkdir packaged-src && tar -C packaged-src --strip-components=1 -xvf survex-?.?.?.tar.gz
-      - name: dependencies
+      - name: install dependencies
         run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
-            sudo apt-get update && export DEBIAN_FRONTEND=noninteractive && sudo apt-get -y install --no-install-recommends libwxgtk3.0-gtk3-dev libproj-dev libavcodec-dev
+            sudo apt-get update 
+            export DEBIAN_FRONTEND=noninteractive
+            sudo apt-get -y install --no-install-recommends libwxgtk3.0-gtk3-dev libproj-dev libavcodec-dev
           elif [ "$RUNNER_OS" == "macOS" ]; then
             brew install ffmpeg netpbm proj wxwidgets
             sudo cpan -T -i Locale::PO
@@ -55,16 +57,13 @@ jobs:
       - name: build
         working-directory: packaged-src
         run: ./configure --prefix=$PWD/package-bin && make -j$(nproc) 2>/dev/null && make install
-      - name: postbuild
+      - name: macOS packaging
+        if: ${{ runner.os == 'macOS' }}
         working-directory: survex-src
         run: |
-          if [ "$RUNNER_OS" == "macOS" ]; then
             echo "Build macOS Aven.app"
             APP_PATH=package-bin/Aven.app make create-aven-app
             mv ./package-bin/bin/* ./package-bin/Aven.app/Contents/MacOS
-          else
-            echo "No post build steps required"
-          fi
       - name: Upload package artifact
         uses: actions/upload-artifact@v2
         with:
