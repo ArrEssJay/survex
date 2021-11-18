@@ -2,7 +2,7 @@
 FROM ghcr.io/catthehacker/ubuntu:runner-20.04 AS binary_builder
 
 
-# Minimal dependencies for packaged source build
+#Dependencies for binary build
 RUN sudo -- sh -c 'apt update && export DEBIAN_FRONTEND=noninteractive \
      && apt -y install --no-install-recommends libwxgtk3.0-gtk3-dev libproj-dev libavcodec-dev'
      
