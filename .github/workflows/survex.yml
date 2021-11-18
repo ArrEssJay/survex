@@ -59,13 +59,16 @@ jobs:
         working-directory: packaged-src
         run: |
           if [ "$RUNNER_OS" == "macOS" ]; then
+            echo "Build macOS Aven.app"
             APP_PATH=package-bin/Aven.app make create-aven-app
             mv ./package-bin/bin/* ./package-bin/Aven.app/Contents/MacOS
+          else
+            echo "No post build steps required"
           fi
       - name: Upload package artifact
         uses: actions/upload-artifact@v2
         with:
-          name: survex-binary-package
+          name: survex-bin-"$RUNNER_OS"
           path: packaged-src/package-bin/
     #  - name: check
     #   run: make check
