@@ -1,0 +1,74 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: inkscape ppa
+        run: sudo add-apt-repository universe && sudo add-apt-repository ppa:inkscape.dev/stable
+      - name: dependencies
+        run: sudo apt-get update && export DEBIAN_FRONTEND=noninteractive && sudo apt-get -y install --no-install-recommends inkscape unifont docbook-utils netpbm w3m ghostscript liblocale-po-perl libwxgtk3.0-gtk3-dev libproj-dev libavcodec-dev
+      - name: autoconf
+        run: autoreconf -fiv
+      - name: configure
+        run: ./configure
+      - name: package
+        run: make dist
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: survex-source
+          path: survex-?.?.?.tar.gz
+  build:
+    needs: package
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-10.15, ubuntu-latest]
+
+    steps:
+      - uses: actions/download-artifact@v2
+        id: download
+        with:
+          name: survex-source
+      - name: unzip
+        run: mkdir src-dist && tar -C src-dist --strip-components=1 -xvf survex-?.?.?.tar.gz
+      - name: install dependencies
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            sudo apt-get update 
+            export DEBIAN_FRONTEND=noninteractive
+            sudo apt-get -y install --no-install-recommends libwxgtk3.0-gtk3-dev libproj-dev libavcodec-dev
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            brew install ffmpeg netpbm proj wxwidgets
+            sudo cpan -T -i Locale::PO
+            echo '[ $SHLVL -eq 1 ] && eval "$(perl -I$HOME/perl5/lib/perl5 -Mlocal::lib)"' >> ~/.bashrc
+          else
+            echo "$RUNNER_OS not supported"
+            exit 1
+          fi
+      - name: build
+        working-directory: src-dist
+        run: ./configure --prefix=$PWD/package-bin && make -j$(nproc) 2>/dev/null && make install
+      - name: macOS packaging
+        if: ${{ runner.os == 'macOS' }}
+        working-directory: src-dist
+        run: |
+            echo "Build macOS Aven.app"
+            APP_PATH=package-bin/Aven.app make create-aven-app
+            mv ./package-bin/bin/* ./package-bin/Aven.app/Contents/MacOS
+            mv ./package-bin/share/survex/* ./package-bin/Aven.app/Contents/Resources
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: survex-bin-${{runner.os}}
+          path: src-dist/package-bin/
+    #  - name: check
+    #   run: make check

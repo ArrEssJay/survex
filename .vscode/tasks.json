@@ -1,0 +1,23 @@
+{
+	// See https://go.microsoft.com/fwlink/?LinkId=733558
+	// for the documentation about the tasks.json format
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build Source Package",
+			"type": "shell",
+			"command": "autoreconf -fiv && ./configure && make dist"
+		},
+		{
+			"label": "Unpack Source Package",
+			"type": "shell",
+			"command": "mkdir packaged-src && tar -C packaged-src --strip-components=1 -xvf survex-?.?.?.tar.gz"
+		},
+		{
+			"label": "Build Binary",
+			"type": "shell",
+			"dependsOn": ["Unpack Source Package"],
+			"command": "cd packaged-src && ./configure --prefix=$PWD/package-bin && make -j$(nproc) 2>/dev/null && make install"
+		}
+	]
+}
