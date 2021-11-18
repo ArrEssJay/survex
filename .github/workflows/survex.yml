@@ -43,28 +43,24 @@ jobs:
       - name: dependencies
         run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
-            sudo apt-get update && export DEBIAN_FRONTEND=noninteractive && sudo apt-get -y install --no-install-recommends automake pkg-config gcc g++ libwxgtk3.0-gtk3-dev libavcodec-dev libavformat-dev libproj-dev libswscale-dev mesa-common-dev libglu1-mesa-dev libx11-dev libxext-dev ghostscript netpbm x11proto-core-dev liblocale-po-perl unifont docbook-utils w3m gettext inkscape
+            sudo apt-get update && export DEBIAN_FRONTEND=noninteractive && sudo apt-get -y install --no-install-recommends libwxgtk3.0-gtk3-dev libproj-dev libavcodec-dev
           elif [ "$RUNNER_OS" == "macOS" ]; then
-            brew install automake ffmpeg netpbm proj wxmac 
+            brew install ffmpeg netpbm proj wxwidgets
+            sudo cpan -T -i Locale::PO
+            echo '[ $SHLVL -eq 1 ] && eval "$(perl -I$HOME/perl5/lib/perl5 -Mlocal::lib)"' >> ~/.bashrc
           else
             echo "$RUNNER_OS not supported"
             exit 1
           fi
-      - name: environment
-        run: |
-          if [ "$RUNNER_OS" == "macOS" ]; then
-            sudo cpan -T -i Locale::PO
-            echo '[ $SHLVL -eq 1 ] && eval "$(perl -I$HOME/perl5/lib/perl5 -Mlocal::lib)"' >> ~/.bashrc
-          fi
       - name: build
         working-directory: packaged-src
-        run: ./configure --prefix=$PWD/package-bin && make -j$(nproc) 2>/dev/null
+        run: ./configure --prefix=$PWD/package-bin && make -j$(nproc) 2>/dev/null && make install
       - name: postbuild
         working-directory: packaged-src
         run: |
           if [ "$RUNNER_OS" == "macOS" ]; then
-            APP_PATH=Aven.app make create-aven-app make create-aven-app
-            cp src/aven Aven.app/Contents/MacOS
+            APP_PATH=package-bin/Aven.app make create-aven-app
+            mv ./package-bin/bin/* ./package-bin/Aven.app/Contents/MacOS
           fi
       - name: Upload package artifact
         uses: actions/upload-artifact@v2

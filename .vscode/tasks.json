@@ -1,0 +1,17 @@
+{
+	// See https://go.microsoft.com/fwlink/?LinkId=733558
+	// for the documentation about the tasks.json format
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "make dist",
+			"type": "shell",
+			"command": "autoreconf -fiv && ./configure && make dist"
+		},
+		{
+			"label": "build binary",
+			"type": "shell",
+			"command": ""
+		}
+	]
+}
