@@ -12,4 +12,4 @@ FROM binary_builder AS source_dist_builder
 RUN sudo -- sh -c 'add-apt-repository universe && \
                   add-apt-repository ppa:inkscape.dev/stable && \
                   apt-get update && export DEBIAN_FRONTEND=noninteractive && \
-                  apt-get -y install --no-install-recommends inkscape unifont docbook-utils netpbm w3m liblocale-po-perl'
+                  apt-get -y install --no-install-recommends ghostscript inkscape unifont docbook-utils netpbm w3m liblocale-po-perl'

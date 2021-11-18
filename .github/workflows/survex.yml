@@ -14,7 +14,7 @@ jobs:
       - name: inkscape ppa
         run: sudo add-apt-repository universe && sudo add-apt-repository ppa:inkscape.dev/stable
       - name: dependencies
-        run: sudo apt-get update && export DEBIAN_FRONTEND=noninteractive && sudo apt-get -y install --no-install-recommends inkscape unifont docbook-utils netpbm w3m liblocale-po-perl libwxgtk3.0-gtk3-dev libproj-dev libavcodec-dev
+        run: sudo apt-get update && export DEBIAN_FRONTEND=noninteractive && sudo apt-get -y install --no-install-recommends inkscape unifont docbook-utils netpbm w3m ghostscript liblocale-po-perl libwxgtk3.0-gtk3-dev libproj-dev libavcodec-dev
       - name: autoconf
         run: autoreconf -fiv
       - name: configure
